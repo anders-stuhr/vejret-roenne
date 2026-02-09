@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<title>Rønne</title>
+
+<style>
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #1a1a1a;
+    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 1920px;
+    height: 2160px;
+  }
+
+  h1 {
+    margin-top: 50px;
+    font-size: 120px;
+  }
+
+  .sun-times {
+    margin-top: 20px;
+    font-size: 60px;
+  }
+
+  .forecast {
+    display: flex;
+    flex-direction: column;
+    margin-top: 50px;
+    gap: 30px;
+  }
+
+  .day {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 1600px;
+    font-size: 80px;
+    padding: 20px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 20px;
+  }
+
+  .date {
+    width: 520px;
+    white-space: nowrap;
+  }
+
+  .icon {
+    width: 120px;
+    text-align: center;
+  }
+</style>
+</head>
+
+<body>
+
+<h1>Rønne</h1>
+<div class="sun-times" id="sun-times"></div>
+<div class="forecast" id="forecast"></div>
+
+<script>
+const forecastDiv = document.getElementById('forecast');
+const sunTimesDiv = document.getElementById('sun-times');
+
+// Rønne koordinater
+const lat = 55.1009;
+const lon = 14.7066;
+
+// Kort ugedag mapping
+const shortWeekdays = {
+  "mandag": "Man",
+  "tirsdag": "Tirs",
+  "onsdag": "Ons",
+  "torsdag": "Tors",
+  "fredag": "Fre",
+  "lørdag": "Lør",
+  "søndag": "Søn"
+};
+
+// Open-Meteo: middelvind (10 m) i m/s
+fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,weathercode,sunrise,sunset,windspeed_10m_mean&wind_speed_unit=ms&timezone=Europe/Copenhagen`)
+.then(res => res.json())
+.then(data => {
+  const days = data.daily.time;
+  const maxTemp = data.daily.temperature_2m_max;
+  const codes = data.daily.weathercode;
+  const sunrises = data.daily.sunrise;
+  const sunsets = data.daily.sunset;
+  const windMean = data.daily.windspeed_10m_mean;
+
+  // Solopgang / solnedgang for i dag
+  const today = new Date().toISOString().split('T')[0];
+  const todayIndex = days.indexOf(today);
+
+  if (todayIndex !== -1) {
+    const sunrise = new Date(sunrises[todayIndex]).toLocaleTimeString('da-DK', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    const sunset = new Date(sunsets[todayIndex]).toLocaleTimeString('da-DK', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    sunTimesDiv.innerHTML = `☀️ Solopgang: ${sunrise} &nbsp;&nbsp; 🌙 Solnedgang: ${sunset}`;
+  }
+
+  const icons = {
+    0: "☀️", 1: "🌤️", 2: "⛅", 3: "☁️",
+    45: "🌫️", 48: "🌫️",
+    51: "🌦️", 53: "🌦️", 55: "🌦️",
+    61: "🌧️", 63: "🌧️", 65: "🌧️",
+    71: "❄️", 73: "❄️", 75: "❄️",
+    80: "🌧️", 81: "🌧️", 82: "🌧️",
+    95: "⛈️", 99: "⛈️"
+  };
+
+  for (let i = 0; i < days.length; i++) {
+    const dateObj = new Date(days[i]);
+    const weekdayFull = dateObj.toLocaleDateString('da-DK', { weekday: 'long' }).toLowerCase();
+    const weekdayShort = shortWeekdays[weekdayFull] || weekdayFull;
+
+    const dayDiv = document.createElement('div');
+    dayDiv.className = 'day';
+
+    dayDiv.innerHTML = `
+      <div class="date">
+        ${weekdayShort} ${dateObj.toLocaleDateString('da-DK', { day: 'numeric', month: 'short' })}
+      </div>
+      <div class="icon">${icons[codes[i]] || "❓"}</div>
+      <div>Max: ${Math.round(maxTemp[i])}°</div>
+      <div>💨 ${windMean[i].toFixed(1)} m/s</div>
+    `;
+
+    forecastDiv.appendChild(dayDiv);
+  }
+})
+.catch(() => {
+  forecastDiv.innerHTML =
+    '<p style="font-size:80px;color:red;">Fejl ved hentning af vejrdata</p>';
+});
+</script>
+
+</body>
+</html>
